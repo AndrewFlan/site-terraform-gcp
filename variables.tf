@@ -22,9 +22,9 @@ variable "machine_type" {
   default     = "e2-micro"
 }
 
-variable "ssh_public_key" {
+variable "ssh_public_keys" {
   description = "SSH public key contents for the instance"
-  type        = string
+  type        = list(string)
 }
 
 variable "deploy_bucket_name" {
