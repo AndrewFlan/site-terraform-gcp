@@ -1,44 +1,42 @@
-# Security Group for EC2 instance
-resource "aws_security_group" "web" {
-  name        = "${var.project_name}-web-sg"
-  description = "Allow SSH, HTTP, and HTTPS inbound"
+# ---------------------------------------------------------
+# Firewall Rules
+# ---------------------------------------------------------
 
-  # SSH
-  ingress {
-    description = "SSH"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+resource "google_compute_firewall" "allow_ssh" {
+  name    = "${var.project_name}-allow-ssh"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
   }
 
-  # HTTP
-  ingress {
-    description = "HTTP"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["web-server"]
+}
+
+resource "google_compute_firewall" "allow_http" {
+  name    = "${var.project_name}-allow-http"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["80"]
   }
 
-  # HTTPS
-  ingress {
-    description = "HTTPS"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["web-server"]
+}
+
+resource "google_compute_firewall" "allow_https" {
+  name    = "${var.project_name}-allow-https"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["443"]
   }
 
-  # Allow all outbound
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "${var.project_name}-web-sg"
-  }
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["web-server"]
 }

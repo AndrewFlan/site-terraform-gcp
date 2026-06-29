@@ -1,7 +1,13 @@
-variable "aws_region" {
-  description = "AWS region to deploy into"
+variable "project_id" {
+  description = "Your GCP project ID (not the display name)"
   type        = string
-  default     = "us-east-1"
+  default     = "andrewflanigan-site"
+}
+
+variable "region" {
+  description = "GCP region to deploy into"
+  type        = string
+  default     = "us-central1"
 }
 
 variable "project_name" {
@@ -10,18 +16,19 @@ variable "project_name" {
   default     = "my-website"
 }
 
-variable "instance_type" {
-  description = "EC2 instance type"
+variable "machine_type" {
+  description = "Compute Engine machine type"
   type        = string
-  default     = "t3.micro"
-}
-
-variable "domain_name" {
-  description = "Registered domain"
-  type        = string
+  default     = "e2-micro"
 }
 
 variable "ssh_public_key" {
-  description = "SSH public key contents for EC2 key pair"
+  description = "SSH public key contents for the instance"
   type        = string
+}
+
+variable "deploy_bucket_name" {
+  description = "Name for the GCS bucket created for site file deployment staging — must be globally unique"
+  type        = string
+  default     = "andrewflanigan-site-deploy"
 }

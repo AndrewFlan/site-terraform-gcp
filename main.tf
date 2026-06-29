@@ -1,135 +1,100 @@
 terraform {
-  required_version = ">= 1.10.0"
+  required_version = ">= 1.15.0"
 
   required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 6.43"
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 7.0"
     }
   }
 
-  # Remote state in S3
-  backend "s3" {
-    bucket         = "andrewflanigan-terraform-state"
-    key            = "my-website/terraform.tfstate"
-    region         = "us-east-1"
-    dynamodb_table = "terraform-state-lock"
-    encrypt        = true
+  # Remote state in Google Cloud Storage
+  backend "gcs" {
+    bucket = "andrewflanigan-terraform-state-gcp"
+    prefix = "personal-site"
   }
 }
 
-provider "aws" {
-  region = var.aws_region
+provider "google" {
+  project = var.project_id
+  region  = var.region
+}
 
-  default_tags {
-    tags = {
-      Project   = "my-website"
-      ManagedBy = "terraform"
+# ---------------------------------------------------------
+# Static External IP
+# ---------------------------------------------------------
+resource "google_compute_address" "web" {
+  name   = "${var.project_name}-ip"
+  region = var.region
+}
+
+# ---------------------------------------------------------
+# Service Account for the Compute Engine instance
+# ---------------------------------------------------------
+resource "google_service_account" "web" {
+  account_id   = "${var.project_name}-sa"
+  display_name = "Web server service account"
+}
+
+# ---------------------------------------------------------
+# GCS Bucket for site file deployment staging
+# ---------------------------------------------------------
+resource "google_storage_bucket" "site_deploy" {
+  name                        = var.deploy_bucket_name
+  location                    = var.region
+  uniform_bucket_level_access = true
+  force_destroy               = true # allows bucket deletion even if files remain
+
+  # Avoid stale files piling up if a deploy ever fails midway
+  lifecycle_rule {
+    condition {
+      age = 1 # days
+    }
+    action {
+      type = "Delete"
     }
   }
 }
 
-resource "aws_iam_instance_profile" "ssm" {
-  name = "${var.project_name}-ssm-profile"
-  role = aws_iam_role.ssm.name
+# Grants the service account permission to read/write the
+# site-deploy bucket
+resource "google_storage_bucket_iam_member" "web_sa_storage" {
+  bucket = google_storage_bucket.site_deploy.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.web.email}"
 }
 
-resource "aws_iam_role" "ssm" {
-  name = "${var.project_name}-ssm-role"
+# ---------------------------------------------------------
+# Compute Engine Instance
+# ---------------------------------------------------------
+resource "google_compute_instance" "web" {
+  name         = "${var.project_name}-web"
+  machine_type = var.machine_type
+  zone         = "${var.region}-a"
 
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "ec2.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-    }]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "ssm" {
-  role       = aws_iam_role.ssm.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-}
-
-resource "aws_iam_role_policy" "ssm_s3" {
-  name = "s3-site-deploy"
-  role = aws_iam_role.ssm.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid    = "S3SiteDeploy"
-        Effect = "Allow"
-        Action = [
-          "s3:GetObject",
-          "s3:ListBucket",
-          "s3:DeleteObject"
-        ]
-        Resource = [
-          "arn:aws:s3:::andrewflanigan-terraform-state",
-          "arn:aws:s3:::andrewflanigan-terraform-state/site-deploy/*"
-        ]
-      }
-    ]
-  })
-}
-
-# SSH Key Pair
-resource "aws_key_pair" "this" {
-  key_name   = "${var.project_name}-key"
-  public_key = var.ssh_public_key
-}
-
-# Look up the latest Ubuntu 24.04 LTS AMI automatically
-data "aws_ami" "ubuntu" {
-  most_recent = true
-  owners      = ["099720109477"] # Canonical
-
-  filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"]
+  boot_disk {
+    initialize_params {
+      image = "ubuntu-os-cloud/ubuntu-2404-lts-amd64"
+      size  = 10
+      type  = "pd-standard"
+    }
   }
 
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-}
-
-# EC2 Instance
-resource "aws_instance" "web" {
-  ami                    = data.aws_ami.ubuntu.id
-  instance_type          = var.instance_type
-  key_name               = aws_key_pair.this.key_name
-  vpc_security_group_ids = [aws_security_group.web.id]
-  iam_instance_profile   = aws_iam_instance_profile.ssm.name
-
-  lifecycle {
-    ignore_changes = [ami]
+  network_interface {
+    network = "default"
+    access_config {
+      nat_ip = google_compute_address.web.address
+    }
   }
 
-  root_block_device {
-    volume_type = "gp3"
-    volume_size = 8
-    encrypted   = true
+  metadata = {
+    ssh-keys = "ubuntu:${var.ssh_public_key}"
   }
 
-  metadata_options {
-    http_tokens = "required" # Enforce IMDSv2
+  service_account {
+    email  = google_service_account.web.email
+    scopes = ["cloud-platform"]
   }
 
-  tags = {
-    Name = "${var.project_name}-web"
-  }
-}
-
-resource "aws_eip" "web" {
-  instance = aws_instance.web.id
-  domain   = "vpc"
-
-  tags = {
-    Name = "${var.project_name}-eip"
-  }
+  tags = ["web-server"]
 }
