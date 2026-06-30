@@ -40,11 +40,12 @@ jobs:
               run: terraform init
 
             - name: Terraform Plan
+              env:
+                  TF_VAR_ssh_public_keys: ${{ secrets.SSH_PUBLIC_KEYS_JSON }}
               run: |
                   set -o pipefail
                   terraform plan \
                     -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
-                    -var='ssh_public_keys=${{ secrets.SSH_PUBLIC_KEYS_JSON }}' \
                     -out=tfplan 2>&1 | tee plan_output.txt
 
             - name: Comment plan on PR
@@ -80,6 +81,8 @@ jobs:
             # Only apply on push to main, not on pull requests
             - name: Terraform Apply
               if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+              env:
+                  TF_VAR_ssh_public_keys: ${{ secrets.SSH_PUBLIC_KEYS_JSON }}
               run: terraform apply -auto-approve tfplan
 
             - name: Update GCP instance name secret
