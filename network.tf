@@ -40,3 +40,31 @@ resource "google_compute_firewall" "allow_https" {
   source_ranges = ["0.0.0.0/0"]
   target_tags   = ["web-server"]
 }
+
+resource "google_compute_firewall" "disable_default_ssh" {
+  name     = "default-allow-ssh"
+  network  = "default"
+  disabled = true
+  priority = 65534
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+}
+
+resource "google_compute_firewall" "disable_default_rdp" {
+  name     = "default-allow-rdp"
+  network  = "default"
+  disabled = true
+  priority = 65534
+
+  allow {
+    protocol = "tcp"
+    ports    = ["3389"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+}
