@@ -8,7 +8,7 @@ on:
         branches:
             - main
 
-# Required for OIDC
+# Required for Workload Identity Federation
 permissions:
     id-token: write
     contents: read
@@ -22,12 +22,14 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v6
 
-            - name: Configure AWS credentials via OIDC
-              uses: aws-actions/configure-aws-credentials@v6
+            - name: Authenticate to GCP via Workload Identity Federation
+              uses: google-github-actions/auth@v2
               with:
-                  role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-                  aws-region: us-east-1
-                  audience: sts.amazonaws.com
+                  workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+                  service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+            - name: Set up gcloud
+              uses: google-github-actions/setup-gcloud@v2
 
             - name: Install Terraform
               uses: hashicorp/setup-terraform@v4
@@ -38,9 +40,13 @@ jobs:
               run: terraform init
 
             - name: Terraform Plan
+              env:
+                  TF_VAR_ssh_public_keys: ${{ secrets.SSH_PUBLIC_KEYS_JSON }}
               run: |
                   set -o pipefail
-                  terraform plan -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}" -var="domain_name=andrewflanigan.com" -out=tfplan 2>&1 | tee plan_output.txt
+                  terraform plan \
+                    -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
+                    -out=tfplan 2>&1 | tee plan_output.txt
 
             - name: Comment plan on PR
               if: github.event_name== 'pull_request'
@@ -75,14 +81,16 @@ jobs:
             # Only apply on push to main, not on pull requests
             - name: Terraform Apply
               if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+              env:
+                  TF_VAR_ssh_public_keys: ${{ secrets.SSH_PUBLIC_KEYS_JSON }}
               run: terraform apply -auto-approve tfplan
 
-            - name: Update EC2 instance ID secret
+            - name: Update GCP instance name secret
               if: github.ref == 'refs/heads/main' && github.event_name == 'push'
               env:
                   GH_TOKEN: ${{ secrets.GH_PAT }}
               run: |
-                  INSTANCE_ID=$(terraform output -raw instance_id)
-                  gh secret set EC2_INSTANCE_ID \
+                  INSTANCE_NAME=$(terraform output -raw instance_name)
+                  gh secret set GCP_INSTANCE_NAME \
                     --repo AndrewFlan/my-website \
-                    --body "$INSTANCE_ID"
+                    --body "$INSTANCE_NAME"
