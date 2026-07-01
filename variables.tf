@@ -28,11 +28,6 @@ variable "deploy_bucket_name" {
   default     = "andrewflanigan-site-deploy"
 }
 
-variable "oslogin_user" {
-  description = "Google account username for OS Login (format: first_last_domain_com)"
-  type        = string
-}
-
 variable "ansible_ssh_public_key" {
   description = "SSH public key content to register with OS Login for Ansible access"
   type        = string
