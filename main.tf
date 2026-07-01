@@ -88,8 +88,7 @@ resource "google_compute_instance" "web" {
   }
 
   metadata = {
-    ssh-keys               = join("\n", [for key in var.ssh_public_keys : "ubuntu:${key}"])
-    block-project-ssh-keys = "true"
+    enable-oslogin = "TRUE"
   }
 
   service_account {
