@@ -9,7 +9,7 @@ Terraform performs these tasks:
 - Sets up a Compute Engine Instance:
   - Runs the latest Ubuntu 24.04 LTS image (`e2-micro`)
   - Assigns a static external IP address
-  - SSH access restricted to approved keys only
+  - SSH access managed via OS Login (`enable-oslogin`)
   - Attached service account scoped to least-privilege access
 - Sets up Firewall Rules:
   - Allows SSH Ingress via IAP only (Google's Identity-Aware Proxy range `35.235.240.0/20`)

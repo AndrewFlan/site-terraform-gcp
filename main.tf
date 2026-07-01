@@ -88,8 +88,7 @@ resource "google_compute_instance" "web" {
   }
 
   metadata = {
-    ssh-keys               = join("\n", [for key in var.ssh_public_keys : "ubuntu:${key}"])
-    block-project-ssh-keys = "true"
+    enable-oslogin = "TRUE"
   }
 
   service_account {
@@ -98,4 +97,12 @@ resource "google_compute_instance" "web" {
   }
 
   tags = ["web-server"]
+}
+
+# ---------------------------------------------------------
+# OS Login SSH key for Ansible/admin access
+# ---------------------------------------------------------
+resource "google_os_login_ssh_public_key" "ansible" {
+  user = var.oslogin_user
+  key  = var.ansible_ssh_public_key
 }

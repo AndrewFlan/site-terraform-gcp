@@ -22,13 +22,18 @@ variable "machine_type" {
   default     = "e2-micro"
 }
 
-variable "ssh_public_keys" {
-  description = "SSH public key contents for the instance"
-  type        = list(string)
-}
-
 variable "deploy_bucket_name" {
   description = "Name for the GCS bucket created for site file deployment staging — must be globally unique"
   type        = string
   default     = "andrewflanigan-site-deploy"
+}
+
+variable "oslogin_user" {
+  description = "Google account username for OS Login (format: first_last_domain_com)"
+  type        = string
+}
+
+variable "ansible_ssh_public_key" {
+  description = "SSH public key content to register with OS Login for Ansible access"
+  type        = string
 }

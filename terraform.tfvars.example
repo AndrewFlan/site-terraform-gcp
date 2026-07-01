@@ -1,4 +1,5 @@
 # Copy this to terraform.tfvars and fill in your values
 
-project_id     = "andrewflanigan-site"
-ssh_public_keys = ["ssh-ed25519 AAAA... public key 1", "ssh-ed25519 AAAA... public key 2"]
+project_id             = "andrewflanigan-site"
+oslogin_user           = "OS Login user"
+ansible_ssh_public_key = "ssh public key"
