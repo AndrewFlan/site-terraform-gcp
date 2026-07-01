@@ -9,6 +9,11 @@ updates:
       day: "monday"
     labels:
       - "dependencies"
+    assignees:
+      - "AndrewFlan"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore"
 
   # Keep Terraform providers up to date
   - package-ecosystem: "terraform"
@@ -18,3 +23,8 @@ updates:
       day: "monday"
     labels:
       - "dependencies"
+    assignees:
+      - "AndrewFlan"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore"

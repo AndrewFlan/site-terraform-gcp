@@ -1,58 +1,32 @@
 # About
 
-This repository stores the Terraform code to manage the AWS Infrastructure for my Personal Website [andrewflanigan.com](andrewflanigan.com)
+This repository stores the Terraform code to manage the GCP Infrastructure for my Personal Website [andrewflanigan.com](andrewflanigan.com)
 
-## What is does
+## What it does
 
-Terraform performs theses tasks:
+Terraform performs these tasks:
 
-- Sets up an EC2 Instance:
-  - Runs the latest Ubuntu 24.04 LTS Image
-  - Sets up Elastic IP, SSH keypair, enforces IMDSv2
-- Sets up Security Groups:
-  - Allows SSH Ingress (SSH is restrict to approved keys only)
-  - Allows HTTP/HTTPS Ingress
-  - Allows outbound traffic
-- Sets up Route53 DNS Records for:
-  - [andrewflanigan.com](andrewflanigan.com)
-  - [www.andrewflanigan.com](www.andrewflanigan.com)
-- Stores Terraform State in an S3 Bucket
-- Keeps Terraform State lock in DynamoDB
+- Sets up a Compute Engine Instance:
+  - Runs the latest Ubuntu 24.04 LTS image (`e2-micro`)
+  - Assigns a static external IP address
+  - SSH access restricted to approved keys only
+  - Attached service account scoped to least-privilege access
+- Sets up Firewall Rules:
+  - Allows SSH Ingress via IAP only (Google's Identity-Aware Proxy range `35.235.240.0/20`)
+  - Allows HTTP/HTTPS Ingress from any IP
+  - Disables the default GCP `allow-ssh` and `allow-rdp` rules
+- Sets up a GCS Bucket for site file deployment staging:
+  - The instance's service account has `roles/storage.objectAdmin` on this bucket
+  - Files older than 1 day are automatically deleted
+- Stores Terraform State in a GCS Bucket (`andrewflanigan-terraform-state-gcp`)
 
-## Github Workflows/Actions
+## GitHub Workflows/Actions
 
-This repository also has a couple GitHub Workflow/Actions setup:
+This repository also has a couple GitHub Workflow/Actions set up:
 
 - Runs [tflint](https://github.com/terraform-linters/tflint) on pull requests/merges
 - Runs [Dependabot](https://docs.github.com/en/code-security/tutorials/secure-your-dependencies/dependabot-quickstart-guide) weekly
-- Runs Terraform Init and Plan on pull requests and Apply when merged.
-  - Keeps everything in GitHub making it easy to update Infrastructure
-  - This Action utilizes an AWS IAM Role that authenticates via an OpenID Connect Identity Provider. The Role has a Policy that only gives it access to what Terraform needs to run. Sessions are only good for 1 hour.
-
-## Updating the Instance AMI
-
-Finding the AMI:
-
-```bash
-aws ec2 describe-images \
-  --profile personal-site \
-  --owners 099720109477 \
-  --filters "Name=name,Values=ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*" \
-  --query "sort_by(Images, &CreationDate)[-1].ImageId" \
-  --output text
-```
-
-Force Replace instance:
-
-```bash
-AWS_PROFILE=personal-site terraform apply \
-  -replace="aws_instance.web" \
-  -var="ssh_public_key=$(cat ~/.ssh/my-website.pub)" \
-  -var="domain_name=andrewflanigan.com"
-```
-
-Run Ansible after new Instance created:
-
-```bash
-ansible-playbook playbook.yml --extra-vars "@vars.yml"
-```
+- Runs Terraform Init and Plan on pull requests and Apply when merged to main:
+  - Posts the Terraform plan output as a PR comment (updates the comment on re-runs)
+  - After apply, exports the instance name as a secret to the [my-website](https://github.com/AndrewFlan/my-website) repo so deploy workflows can reference it
+  - Authentication uses GCP Workload Identity Federation — no long-lived service account keys are stored; sessions are short-lived
