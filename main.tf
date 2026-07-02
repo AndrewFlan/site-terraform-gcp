@@ -89,7 +89,6 @@ resource "google_compute_instance" "web" {
 
   metadata = {
     enable-oslogin = "TRUE"
-    ssh-keys       = "ubuntu:${var.ansible_ssh_public_key}"
   }
 
   service_account {

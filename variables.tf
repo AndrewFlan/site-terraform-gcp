@@ -27,8 +27,3 @@ variable "deploy_bucket_name" {
   type        = string
   default     = "andrewflanigan-site-deploy"
 }
-
-variable "ansible_ssh_public_key" {
-  description = "SSH public key content to register with OS Login for Ansible access"
-  type        = string
-}
